@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APEX — Instagram Post Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@300;400;500&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+/* ════════════════════════════════════════════
+   DESIGN TOKENS
+════════════════════════════════════════════ */
+:root {
+  --gold: #c9a84c;
+  --gold-l: #e8c97a;
+  --gold-d: #a07830;
+  --red: #b83232;
+  --transition: 0.25s cubic-bezier(.4,0,.2,1);
+}
+
+[data-theme="dark"] {
+  --bg: #0a0a0a;
+  --surface: #141414;
+  --surface2: #1c1c1c;
+  --border: rgba(201,168,76,0.18);
+  --border2: rgba(255,255,255,0.06);
+  --text: #f0ebe0;
+  --text2: #9a9080;
+  --text3: rgba(240,235,224,0.55);
+  --shadow: 0 24px 60px rgba(0,0,0,0.6);
+  --glass: rgba(255,255,255,0.02);
+}
+
+[data-theme="light"] {
+  --bg: #f2ede3;
+  --surface: #faf7f0;
+  --surface2: #ede8dc;
+  --border: rgba(160,120,48,0.22);
+  --border2: rgba(0,0,0,0.08);
+  --text: #1a1510;
+  --text2: #7a6e5e;
+  --text3: rgba(26,21,16,0.5);
+  --shadow: 0 24px 60px rgba(100,80,40,0.18);
+  --glass: rgba(0,0,0,0.02);
+}
+
+/* ════════════════════════════════════════════
+   RESET & BASE
+════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'IBM Plex Mono', monospace;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  transition: background var(--transition), color var(--transition);
+  overflow-x: hidden;
+}
+
+/* ════════════════════════════════════════════
+   HEADER
+════════════════════════════════════════════ */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: background var(--transition);
+}
+
+.logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.6rem;
+  letter-spacing: 0.3em;
+  color: var(--gold);
+  line-height: 1;
+}
+.logo-sub {
+  font-size: 0.52rem;
+  letter-spacing: 0.2em;
+  color: var(--text2);
+  display: block;
+  margin-top: -2px;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.header-actions { display: flex; align-items: center; gap: 0.75rem; }
+
+.theme-toggle {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.15em;
+  padding: 6px 14px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.theme-toggle:hover { border-color: var(--gold); color: var(--gold); }
+
+.btn-primary {
+  background: var(--gold);
+  border: none;
+  color: #0a0a0a;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.18em;
+  padding: 8px 18px;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-weight: 500;
+  transition: all var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-primary:hover { background: var(--gold-l); transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0); }
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text2);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.15em;
+  padding: 7px 16px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all var(--transition);
+}
+.btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
+
+/* ════════════════════════════════════════════
+   LAYOUT
+════════════════════════════════════════════ */
+.app-body {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  height: calc(100vh - 60px);
+  overflow: hidden;
+}
+
+/* ════════════════════════════════════════════
+   SIDEBAR — EDITOR PANEL
+════════════════════════════════════════════ */
+.sidebar {
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  background: var(--surface);
+  transition: background var(--transition);
+}
+
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.sidebar-section {
+  border-bottom: 1px solid var(--border2);
+  padding: 1.25rem 1.5rem;
+}
+
+.sidebar-title {
+  font-size: 0.55rem;
+  letter-spacing: 0.28em;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sidebar-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* TEMPLATE SELECTOR */
+.template-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.tpl-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  padding: 10px 8px;
+  cursor: pointer;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  color: var(--text2);
+  text-align: center;
+  transition: all var(--transition);
+  line-height: 1.4;
+}
+.tpl-btn:hover, .tpl-btn.active {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: rgba(201,168,76,0.06);
+}
+
+/* FORM FIELDS */
+.field-group { margin-bottom: 1rem; }
+.field-group:last-child { margin-bottom: 0; }
+
+label {
+  display: block;
+  font-size: 0.52rem;
+  letter-spacing: 0.2em;
+  color: var(--text2);
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+input[type="text"], textarea, select {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  padding: 9px 12px;
+  outline: none;
+  transition: border-color var(--transition);
+  resize: vertical;
+  appearance: none;
+  line-height: 1.5;
+}
+input[type="text"]:focus, textarea:focus, select:focus {
+  border-color: var(--gold);
+}
+textarea { min-height: 70px; }
+
+select option { background: var(--surface2); }
+
+/* COLOR PICKER ROW */
+.color-picker-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-top: 0.5rem;
+}
+.color-swatch {
+  height: 28px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition);
+  position: relative;
+}
+.color-swatch.active::after {
+  content: '✓';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: white;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+}
+.color-swatch:hover { transform: scale(1.08); }
+.color-swatch.active { border-color: var(--gold); }
+
+/* SLIDE COUNTER */
+.slide-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+.slide-nav-btn {
+  width: 30px;
+  height: 30px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+  font-family: monospace;
+}
+.slide-nav-btn:hover { border-color: var(--gold); color: var(--gold); }
+.slide-counter {
+  font-size: 0.6rem;
+  color: var(--text2);
+  letter-spacing: 0.1em;
+}
+
+/* STYLE CONTROLS */
+.style-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* FONT SIZE SLIDER */
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 3px;
+  background: var(--border2);
+  outline: none;
+  cursor: pointer;
+  margin-top: 8px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--gold);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* DOWNLOAD ACTIONS */
+.download-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.btn-download {
+  background: var(--gold);
+  border: none;
+  color: #0a0a0a;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.15em;
+  padding: 10px 8px;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-weight: 500;
+  transition: all var(--transition);
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.btn-download:hover { background: var(--gold-l); }
+.btn-download.all {
+  grid-column: span 2;
+  background: var(--surface2);
+  border: 1px solid var(--gold);
+  color: var(--gold);
+}
+.btn-download.all:hover { background: rgba(201,168,76,0.1); }
+
+/* ════════════════════════════════════════════
+   MAIN PREVIEW AREA
+════════════════════════════════════════════ */
+.preview-area {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  overflow: hidden;
+  transition: background var(--transition);
+}
+
+.preview-toolbar {
+  height: 48px;
+  border-bottom: 1px solid var(--border2);
+  display: flex;
+  align-items: center;
+  padding: 0 1.5rem;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+.preview-label {
+  font-size: 0.55rem;
+  letter-spacing: 0.2em;
+  color: var(--text2);
+  text-transform: uppercase;
+}
+
+.slide-dots {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.slide-dot {
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all var(--transition);
+  background: transparent;
+}
+.slide-dot.active {
+  background: var(--gold);
+  border-color: var(--gold);
+}
+
+.preview-canvas-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  overflow: auto;
+  position: relative;
+}
+
+/* ════════════════════════════════════════════
+   INSTAGRAM POST CARD — THE ACTUAL OUTPUT
+   Instagram square = 1080×1080, we display at 480×480
+════════════════════════════════════════════ */
+.ig-post {
+  width: 480px;
+  height: 480px;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  transition: transform 0.3s;
+  display: flex;
+  flex-direction: column;
+  cursor: default;
+}
+
+.ig-post:hover { transform: scale(1.01); }
+
+/* ── TEMPLATE: DARK GOLD ── */
+.ig-post[data-template="dark-gold"] {
+  background: #0a0a0a;
+  color: #f0ebe0;
+}
+
+/* ── TEMPLATE: LIGHT WARM ── */
+.ig-post[data-template="light-warm"] {
+  background: #faf5ec;
+  color: #1a1510;
+}
+
+/* ── TEMPLATE: OBSIDIAN ── */
+.ig-post[data-template="obsidian"] {
+  background: #0d0d14;
+  color: #e8e4f0;
+}
+
+/* ── TEMPLATE: IVORY ── */
+.ig-post[data-template="ivory"] {
+  background: #f5f0e4;
+  color: #1c1814;
+}
+
+/* ── TEMPLATE: SLATE ── */
+.ig-post[data-template="slate"] {
+  background: #1a1f2e;
+  color: #dce4f0;
+}
+
+/* ════════════ SLIDE LAYOUTS ════════════ */
+
+/* LAYOUT: HOOK CARD */
+.slide-hook {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 36px 40px;
+  position: relative;
+}
+
+.slide-hook .post-bg-accent {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.slide-hook .top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.slide-hook .category-badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  border: 1px solid currentColor;
+  padding: 4px 10px;
+  opacity: 0.6;
+}
+
+.slide-hook .post-num {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  opacity: 0.35;
+}
+
+.slide-hook .main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.slide-hook .hook-line {
+  font-family: 'DM Serif Display', serif;
+  font-size: 32px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  margin-bottom: 20px;
+  transition: font-size 0.2s;
+}
+
+.slide-hook .hook-line .accent { color: var(--gold); }
+
+.slide-hook .rule {
+  width: 40px;
+  height: 2px;
+  margin-bottom: 18px;
+}
+
+.slide-hook .sub-text {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  line-height: 1.8;
+  letter-spacing: 0.03em;
+  opacity: 0.6;
+  max-width: 85%;
+}
+
+.slide-hook .bottom-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.slide-hook .brand-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.35em;
+  opacity: 0.4;
+}
+
+.slide-hook .slide-indicator {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  opacity: 0.3;
+}
+
+/* LAYOUT: COMPARISON CARD */
+.slide-compare {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 32px 36px 28px;
+  position: relative;
+}
+
+.slide-compare .compare-header {
+  margin-bottom: 24px;
+}
+
+.slide-compare .compare-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 18px;
+  line-height: 1.3;
+  margin-bottom: 4px;
+}
+
+.slide-compare .compare-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.slide-compare .compare-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  flex: 1;
+}
+
+.slide-compare .col-avg,
+.slide-compare .col-elite {
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.slide-compare .col-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+
+.slide-compare .col-text {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  line-height: 1.75;
+  opacity: 0.8;
+}
+
+.slide-compare .bottom-accent {
+  margin-top: 20px;
+  font-family: 'DM Serif Display', serif;
+  font-style: italic;
+  font-size: 13px;
+  opacity: 0.55;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding-top: 16px;
+  line-height: 1.5;
+}
+
+/* LAYOUT: FRAMEWORK CARD */
+.slide-framework {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 32px 36px;
+}
+
+.slide-framework .fw-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 16px;
+}
+
+.slide-framework .fw-heading {
+  font-family: 'DM Serif Display', serif;
+  font-size: 20px;
+  line-height: 1.3;
+  margin-bottom: 24px;
+}
+
+.slide-framework .fw-steps { flex: 1; display: flex; flex-direction: column; gap: 14px; }
+
+.slide-framework .fw-step {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.slide-framework .step-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--gold);
+  opacity: 0.5;
+  min-width: 28px;
+}
+
+.slide-framework .step-text {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  line-height: 1.7;
+  opacity: 0.75;
+  padding-top: 2px;
+}
+
+.slide-framework .fw-closing {
+  margin-top: 20px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  padding-top: 16px;
+  font-family: 'DM Serif Display', serif;
+  font-style: italic;
+  font-size: 13px;
+  opacity: 0.5;
+}
+
+/* LAYOUT: CLOSING CARD */
+.slide-closing {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px;
+  position: relative;
+}
+
+.slide-closing .closing-rule {
+  width: 1px;
+  height: 60px;
+  opacity: 0.25;
+  margin-bottom: 32px;
+}
+
+.slide-closing .closing-main {
+  font-family: 'DM Serif Display', serif;
+  font-size: 24px;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  margin-bottom: 32px;
+}
+
+.slide-closing .closing-rule2 {
+  width: 1px;
+  height: 40px;
+  opacity: 0.25;
+  margin-bottom: 24px;
+}
+
+.slide-closing .closing-brand {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px;
+  letter-spacing: 0.4em;
+  color: var(--gold);
+  opacity: 0.7;
+}
+
+.slide-closing .closing-handle {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  opacity: 0.35;
+  margin-top: 6px;
+}
+
+/* LAYOUT: CAPTION CARD */
+.slide-caption {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 36px 40px;
+}
+
+.slide-caption .cap-eyebrow {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.28em;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+.slide-caption .cap-text {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  line-height: 1.85;
+  opacity: 0.75;
+  flex: 1;
+}
+
+.slide-caption .cap-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 20px;
+}
+
+.slide-caption .cap-tag {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: var(--gold);
+  opacity: 0.65;
+  letter-spacing: 0.05em;
+}
+
+/* ════════════════════════════════════════════
+   TEMPLATE-SPECIFIC ACCENTS
+════════════════════════════════════════════ */
+
+/* Dark Gold */
+.ig-post[data-template="dark-gold"] .slide-compare .col-avg { background: rgba(255,255,255,0.03); }
+.ig-post[data-template="dark-gold"] .slide-compare .col-elite { background: rgba(201,168,76,0.07); border-left: 2px solid var(--gold); }
+.ig-post[data-template="dark-gold"] .slide-compare .bottom-accent { border-top-color: rgba(255,255,255,0.06); }
+.ig-post[data-template="dark-gold"] .slide-framework .fw-closing { border-top-color: rgba(255,255,255,0.06); }
+.ig-post[data-template="dark-gold"] .closing-rule, .ig-post[data-template="dark-gold"] .closing-rule2 { background: #f0ebe0; }
+.ig-post[data-template="dark-gold"] .slide-hook .rule { background: var(--gold); }
+
+/* Obsidian */
+.ig-post[data-template="obsidian"] .slide-compare .col-avg { background: rgba(255,255,255,0.03); }
+.ig-post[data-template="obsidian"] .slide-compare .col-elite { background: rgba(160,120,220,0.09); border-left: 2px solid #a078dc; }
+.ig-post[data-template="obsidian"] .slide-hook .rule { background: #a078dc; }
+.ig-post[data-template="obsidian"] .compare-label, .ig-post[data-template="obsidian"] .slide-framework .fw-title,
+.ig-post[data-template="obsidian"] .cap-eyebrow, .ig-post[data-template="obsidian"] .fw-step .step-num,
+.ig-post[data-template="obsidian"] .slide-hook .hook-line .accent, .ig-post[data-template="obsidian"] .slide-closing .closing-brand { color: #a078dc; }
+.ig-post[data-template="obsidian"] .cap-tag { color: #a078dc; }
+.ig-post[data-template="obsidian"] .closing-rule, .ig-post[data-template="obsidian"] .closing-rule2 { background: #e8e4f0; }
+
+/* Light Warm */
+.ig-post[data-template="light-warm"] .slide-compare .col-avg { background: rgba(0,0,0,0.04); }
+.ig-post[data-template="light-warm"] .slide-compare .col-elite { background: rgba(180,130,40,0.07); border-left: 2px solid var(--gold-d); }
+.ig-post[data-template="light-warm"] .slide-compare .bottom-accent { border-top-color: rgba(0,0,0,0.1); }
+.ig-post[data-template="light-warm"] .slide-framework .fw-closing { border-top-color: rgba(0,0,0,0.08); }
+.ig-post[data-template="light-warm"] .closing-rule, .ig-post[data-template="light-warm"] .closing-rule2 { background: #1a1510; }
+.ig-post[data-template="light-warm"] .slide-hook .rule { background: var(--gold-d); }
+.ig-post[data-template="light-warm"] .compare-label, .ig-post[data-template="light-warm"] .slide-framework .fw-title,
+.ig-post[data-template="light-warm"] .cap-eyebrow { color: var(--gold-d); }
+.ig-post[data-template="light-warm"] .slide-hook .hook-line .accent { color: var(--gold-d); }
+.ig-post[data-template="light-warm"] .slide-closing .closing-brand, .ig-post[data-template="light-warm"] .cap-tag { color: var(--gold-d); }
+.ig-post[data-template="light-warm"] .step-num { color: var(--gold-d); }
+
+/* Ivory */
+.ig-post[data-template="ivory"] .slide-compare .col-avg { background: rgba(0,0,0,0.03); }
+.ig-post[data-template="ivory"] .slide-compare .col-elite { background: rgba(180,50,50,0.07); border-left: 2px solid #b03030; }
+.ig-post[data-template="ivory"] .compare-label, .ig-post[data-template="ivory"] .slide-framework .fw-title,
+.ig-post[data-template="ivory"] .cap-eyebrow { color: #b03030; }
+.ig-post[data-template="ivory"] .slide-hook .hook-line .accent { color: #b03030; }
+.ig-post[data-template="ivory"] .step-num { color: #b03030; }
+.ig-post[data-template="ivory"] .slide-closing .closing-brand { color: #b03030; }
+.ig-post[data-template="ivory"] .cap-tag { color: #b03030; }
+.ig-post[data-template="ivory"] .slide-hook .rule { background: #b03030; }
+.ig-post[data-template="ivory"] .closing-rule, .ig-post[data-template="ivory"] .closing-rule2 { background: #1c1814; }
+.ig-post[data-template="ivory"] .slide-compare .bottom-accent { border-top-color: rgba(0,0,0,0.08); }
+.ig-post[data-template="ivory"] .slide-framework .fw-closing { border-top-color: rgba(0,0,0,0.08); }
+
+/* Slate */
+.ig-post[data-template="slate"] .slide-compare .col-avg { background: rgba(255,255,255,0.04); }
+.ig-post[data-template="slate"] .slide-compare .col-elite { background: rgba(80,160,220,0.09); border-left: 2px solid #50a0dc; }
+.ig-post[data-template="slate"] .compare-label, .ig-post[data-template="slate"] .slide-framework .fw-title,
+.ig-post[data-template="slate"] .cap-eyebrow { color: #50a0dc; }
+.ig-post[data-template="slate"] .slide-hook .hook-line .accent { color: #50a0dc; }
+.ig-post[data-template="slate"] .step-num { color: #50a0dc; }
+.ig-post[data-template="slate"] .slide-closing .closing-brand { color: #50a0dc; }
+.ig-post[data-template="slate"] .cap-tag { color: #50a0dc; }
+.ig-post[data-template="slate"] .slide-hook .rule { background: #50a0dc; }
+.ig-post[data-template="slate"] .closing-rule, .ig-post[data-template="slate"] .closing-rule2 { background: #dce4f0; }
+.ig-post[data-template="slate"] .slide-compare .bottom-accent { border-top-color: rgba(255,255,255,0.07); }
+.ig-post[data-template="slate"] .slide-framework .fw-closing { border-top-color: rgba(255,255,255,0.07); }
+
+/* ════════════════════════════════════════════
+   POST STRIP (bottom thumbnails)
+════════════════════════════════════════════ */
+.post-strip {
+  height: 80px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 1.5rem;
+  overflow-x: auto;
+  flex-shrink: 0;
+  background: var(--surface);
+}
+
+.post-strip::-webkit-scrollbar { height: 3px; }
+.post-strip::-webkit-scrollbar-thumb { background: var(--border); }
+
+.strip-thumb {
+  flex-shrink: 0;
+  width: 54px;
+  height: 54px;
+  border: 1.5px solid var(--border2);
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+  transition: border-color var(--transition), transform var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 7px;
+  letter-spacing: 0.1em;
+  color: var(--text2);
+  text-align: center;
+  line-height: 1.4;
+}
+
+.strip-thumb:hover { border-color: var(--gold); transform: scale(1.05); }
+.strip-thumb.active { border-color: var(--gold); border-width: 2px; }
+
+.strip-thumb-bg { position: absolute; inset: 0; opacity: 0.15; }
+.strip-thumb-label { position: relative; z-index: 1; padding: 4px; }
+
+/* ════════════════════════════════════════════
+   LOADING OVERLAY
+════════════════════════════════════════════ */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10,10,10,0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  display: none;
+}
+
+.loading-overlay.active { display: flex; }
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 2px solid rgba(201,168,76,0.2);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-text {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.25em;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+
+/* ════════════════════════════════════════════
+   TOAST
+════════════════════════════════════════════ */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--gold);
+  color: #0a0a0a;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.15em;
+  padding: 12px 20px;
+  z-index: 9999;
+  transform: translateY(80px);
+  opacity: 0;
+  transition: all 0.3s;
+  pointer-events: none;
+}
+
+.toast.show { transform: translateY(0); opacity: 1; }
+
+/* ════════════════════════════════════════════
+   RESPONSIVE
+════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .app-body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; overflow: visible; }
+  .sidebar { height: auto; overflow-y: visible; }
+  .preview-area { height: 600px; }
+  .ig-post { width: 380px; height: 380px; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="app-header">
+  <div>
+    <div class="logo">APEX
+      <span class="logo-sub">Instagram Post Generator</span>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="theme-toggle" onclick="toggleAppTheme()">
+      <span id="theme-icon">☀</span>
+      <span id="theme-label">Light Mode</span>
+    </button>
+    <button class="btn-secondary" onclick="randomizePost()">↻ Randomize</button>
+    <button class="btn-primary" onclick="downloadCurrentSlide()">↓ Download PNG</button>
+  </div>
+</header>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loading">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Rendering Post...</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- APP BODY -->
+<div class="app-body">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <!-- TEMPLATE -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">Template</div>
+      <div class="template-grid">
+        <button class="tpl-btn active" onclick="setTemplate('dark-gold', this)">Dark Gold</button>
+        <button class="tpl-btn" onclick="setTemplate('light-warm', this)">Light Warm</button>
+        <button class="tpl-btn" onclick="setTemplate('obsidian', this)">Obsidian</button>
+        <button class="tpl-btn" onclick="setTemplate('ivory', this)">Ivory</button>
+        <button class="tpl-btn" onclick="setTemplate('slate', this)">Slate</button>
+      </div>
+    </div>
+
+    <!-- SLIDE NAVIGATOR -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">Current Slide</div>
+      <div class="slide-nav">
+        <button class="slide-nav-btn" onclick="prevSlide()">←</button>
+        <span class="slide-counter" id="slide-counter">Slide 1 / 5</span>
+        <button class="slide-nav-btn" onclick="nextSlide()">→</button>
+      </div>
+    </div>
+
+    <!-- CONTENT EDITOR -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">Content</div>
+
+      <div class="field-group">
+        <label>Category Tag</label>
+        <input type="text" id="inp-category" value="Wealth Psychology" oninput="updatePost()">
+      </div>
+
+      <div class="field-group">
+        <label>Post Number</label>
+        <input type="text" id="inp-postnum" value="01 / 10" oninput="updatePost()">
+      </div>
+
+      <div class="field-group">
+        <label>Hook (Slide 1)</label>
+        <textarea id="inp-hook" oninput="updatePost()">The richest person in the room is almost never the loudest.</textarea>
+      </div>
+
+      <div class="field-group">
+        <label>Hook Accent Word(s)</label>
+        <input type="text" id="inp-accent" value="never the loudest" oninput="updatePost()">
+      </div>
+
+      <div class="field-group">
+        <label>Sub Text (Slide 1)</label>
+        <textarea id="inp-sub" oninput="updatePost()">Visible wealth is a signal. Invisible wealth is a strategy.</textarea>
+      </div>
+
+      <div class="field-group">
+        <label>Avg Thinking (Slide 2)</label>
+        <textarea id="inp-avg" oninput="updatePost()">Buys luxury goods to signal status. Validation loop through external display.</textarea>
+      </div>
+
+      <div class="field-group">
+        <label>Elite Thinking (Slide 2)</label>
+        <textarea id="inp-elite" oninput="updatePost()">Wealth is privacy. The real flex is nobody knowing your net worth. Leverage beats logos.</textarea>
+      </div>
+
+      <div class="field-group">
+        <label>Framework Steps (one per line)</label>
+        <textarea id="inp-steps" style="min-height:100px" oninput="updatePost()">Reduce visible signals — stop broadcasting income or wins.
+Let results speak through behavior, not content.
+Redirect attention-seeking energy into private network-building.</textarea>
+      </div>
+
+      <div class="field-group">
+        <label>Closing Line (Slide 4)</label>
+        <textarea id="inp-closing" oninput="updatePost()">"Silence is the signature of those who no longer need approval."</textarea>
+      </div>
+
+      <div class="field-group">
+        <label>Caption (Slide 5)</label>
+        <textarea id="inp-caption" oninput="updatePost()">The wealthy don't go quiet because they're humble. They go quiet because noise is a cost they stopped paying. Once you understand that attention is leverage — you spend it differently.</textarea>
+      </div>
+
+      <div class="field-group">
+        <label>Hashtags (space separated)</label>
+        <input type="text" id="inp-tags" value="#WealthPsychology #PowerMoves #EliteThinking #SilentWealth" oninput="updatePost()">
+      </div>
+
+      <div class="field-group">
+        <label>Brand / Page Name</label>
+        <input type="text" id="inp-brand" value="APEX" oninput="updatePost()">
+      </div>
+
+      <div class="field-group">
+        <label>Handle</label>
+        <input type="text" id="inp-handle" value="@apexmindset" oninput="updatePost()">
+      </div>
+    </div>
+
+    <!-- STYLE -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">Style</div>
+
+      <div class="field-group">
+        <label>Hook Font Size</label>
+        <input type="range" id="rng-hooksize" min="20" max="44" value="32" oninput="updateStyle()">
+      </div>
+
+      <div class="field-group">
+        <label>Accent Color</label>
+        <div class="color-picker-row">
+          <div class="color-swatch active" style="background:#c9a84c;" data-color="#c9a84c" onclick="setAccent(this)"></div>
+          <div class="color-swatch" style="background:#e05050;" data-color="#e05050" onclick="setAccent(this)"></div>
+          <div class="color-swatch" style="background:#50a0dc;" data-color="#50a0dc" onclick="setAccent(this)"></div>
+          <div class="color-swatch" style="background:#68d068;" data-color="#68d068" onclick="setAccent(this)"></div>
+          <div class="color-swatch" style="background:#c078dc;" data-color="#c078dc" onclick="setAccent(this)"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DOWNLOAD -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">Export</div>
+      <div class="download-row">
+        <button class="btn-download" onclick="downloadCurrentSlide()">↓ This Slide</button>
+        <button class="btn-download all" onclick="downloadAllSlides()">↓ All 5 Slides</button>
+      </div>
+      <p style="font-size:0.52rem;color:var(--text2);margin-top:0.75rem;letter-spacing:0.08em;line-height:1.7;">
+        Downloads as 1080×1080 PNG — ready for Instagram upload.
+      </p>
+    </div>
+
+    <!-- PRESETS -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">Quick Presets</div>
+      <div class="template-grid">
+        <button class="tpl-btn" onclick="loadPreset('invisible')">Silent Wealth</button>
+        <button class="tpl-btn" onclick="loadPreset('risk')">Risk Engineer</button>
+        <button class="tpl-btn" onclick="loadPreset('systems')">Systems > Work</button>
+        <button class="tpl-btn" onclick="loadPreset('network')">Network Arch.</button>
+        <button class="tpl-btn" onclick="loadPreset('decisions')">Fewer Decisions</button>
+        <button class="tpl-btn" onclick="loadPreset('moat')">Build the Moat</button>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- PREVIEW -->
+  <div class="preview-area">
+    <div class="preview-toolbar">
+      <span class="preview-label">Live Preview · 480 × 480px (exports 1080 × 1080)</span>
+      <div class="slide-dots" id="slide-dots"></div>
+    </div>
+
+    <div class="preview-canvas-wrap">
+      <div class="ig-post" id="ig-post" data-template="dark-gold">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <div class="post-strip" id="post-strip"></div>
+  </div>
+
+</div>
+
+<script>
+// ════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════
+let currentSlide = 0;
+let currentTemplate = 'dark-gold';
+let currentAccent = '#c9a84c';
+
+const SLIDES = [
+  { id: 'hook', label: 'Hook' },
+  { id: 'compare', label: 'Avg vs Elite' },
+  { id: 'framework', label: 'Framework' },
+  { id: 'closing', label: 'Closing' },
+  { id: 'caption', label: 'Caption' }
+];
+
+// ════════════════════════════════════════════
+//  PRESETS
+// ════════════════════════════════════════════
+const PRESETS = {
+  invisible: {
+    category: 'Silent Moves', postnum: '01 / 10',
+    hook: 'The richest person in the room is almost never the loudest.',
+    accent: 'never the loudest',
+    sub: 'Visible wealth is a signal. Invisible wealth is a strategy.',
+    avg: 'Buys luxury goods to signal status. Validation loop through external display.',
+    elite: 'Wealth is privacy. The real flex is nobody knowing your net worth. Leverage beats logos.',
+    steps: 'Reduce visible signals — stop broadcasting income or wins.\nLet results speak through behavior, not content.\nRedirect attention into private network-building.',
+    closing: '"Silence is the signature of those who no longer need approval."',
+    caption: 'The wealthy don\'t go quiet because they\'re humble. They go quiet because noise is a cost they stopped paying. Once you understand that attention is leverage — you spend it differently.',
+    tags: '#WealthPsychology #PowerMoves #EliteThinking #SilentWealth',
+    brand: 'APEX', handle: '@apexmindset'
+  },
+  risk: {
+    category: 'Misconceptions', postnum: '05 / 10',
+    hook: 'Billionaires aren\'t risk-takers. They\'re risk engineers.',
+    accent: 'risk engineers',
+    sub: 'What looks like courage from outside is calculated asymmetry from inside.',
+    avg: 'Takes bold risks and hopes the upside materializes. Celebrates "big bets".',
+    elite: 'Structures deals so failure is survivable. Maximizes upside while capping downside. Math over courage.',
+    steps: 'Q1: What\'s the worst outcome — is it survivable?\nQ2: What\'s the realistic upside vs. downside ratio?\nQ3: What is the base rate of this class of bet?\nQ4: What does doing nothing cost over time?',
+    closing: '"Courage without asymmetry is just gambling with better PR."',
+    caption: 'Stop admiring the risk. Understand the structure beneath it. Every "big bet" you\'ve read about was hedged and backstopped in ways the article never mentioned.',
+    tags: '#RiskPsychology #WealthStrategy #BillionaireThinking #AsymmetricBets',
+    brand: 'APEX', handle: '@apexmindset'
+  },
+  systems: {
+    category: 'Systems vs Work', postnum: '07 / 10',
+    hook: 'Hard work is a bottleneck dressed up as a virtue.',
+    accent: 'bottleneck',
+    sub: 'The hardest worker in any building is almost never the highest earner.',
+    avg: 'Works 60-hour weeks. Income tied to hours. Proud of the grind.',
+    elite: 'Works to build systems that work without them. Income tied to outcomes, not presence.',
+    steps: 'Test: If you stopped working 90 days, what happens to your income?\nBuild: Find the 20% that generates 80% of your value. Systematize it.\nRemove: Everything else is delegatable, automatable, or eliminable.',
+    closing: '"The goal of work is to make yourself unnecessary — not indispensable."',
+    caption: 'The hustle industry profits from keeping you productive inside a box. Systems thinking is about redesigning the box. One isn\'t harder — one is just a different game entirely.',
+    tags: '#SystemsThinking #WealthArchitecture #BeyondHustle #EliteStrategy',
+    brand: 'APEX', handle: '@apexmindset'
+  },
+  network: {
+    category: 'Power & Influence', postnum: '04 / 10',
+    hook: 'Networking doesn\'t scale. Network architecture does.',
+    accent: 'Network architecture',
+    sub: 'Collecting contacts is a middle-class strategy. The elite build nodes.',
+    avg: 'Attends events, collects cards, follows up generically. Wide but shallow.',
+    elite: 'Identifies 5 node people per year. Invests deeply. Access compounds over time.',
+    steps: 'Map your network — who sits at intersections of multiple power circles?\nIdentify 5 nodes you need in the next 12 months. Work backwards.\nProvide value before asking for access. Nodes only open for those who bring something.',
+    closing: '"Your network isn\'t who you know. It\'s what ecosystems you can reach in two introductions."',
+    caption: 'At a certain level of success, skills are assumed. The differentiator becomes access — and access is a function of network architecture, not hustle.',
+    tags: '#PowerNetworking #InfluenceStrategy #EliteAccess #WealthPsychology',
+    brand: 'APEX', handle: '@apexmindset'
+  },
+  decisions: {
+    category: 'Decision Frameworks', postnum: '03 / 10',
+    hook: 'Billionaires don\'t make better decisions. They make fewer.',
+    accent: 'fewer',
+    sub: 'Decision fatigue is real. The elite engineer their environment to eliminate it.',
+    avg: 'Makes 200+ small decisions daily. Exhausted by evening. Big choices on empty tank.',
+    elite: 'Systematizes everything routine. Reserves cognitive energy for 2–3 high-leverage calls per day.',
+    steps: 'Identify decisions you make repeatedly — these are automation candidates.\nCreate if-then rules for recurring scenarios. Kill real-time deliberation.\nSchedule your 2 most important decisions before noon. Everything after is maintenance.',
+    closing: '"The goal isn\'t to make better decisions. It\'s to need fewer of them."',
+    caption: 'Steve Jobs wore the same outfit. Buffett eats the same breakfast. This isn\'t eccentricity — it\'s cognitive capital management. Every irrelevant choice eliminated is energy reallocated to something that compounds.',
+    tags: '#DecisionFrameworks #CognitiveEdge #EliteHabits #BillionaireMindset',
+    brand: 'APEX', handle: '@apexmindset'
+  },
+  moat: {
+    category: 'Silent Moves · Systems', postnum: '10 / 10',
+    hook: 'The wealthy don\'t build empires. They build moats.',
+    accent: 'build moats',
+    sub: 'Then let the empire fill itself in. Grinding is the absence of a moat.',
+    avg: 'Competes on effort and skill. Replicable. Race to the bottom. Dependent on output.',
+    elite: 'Builds structural advantages. Position defends itself. Competitors face costs you don\'t.',
+    steps: 'Network effects — your value grows as more people know or use you.\nSwitching costs — make it expensive to replace you.\nProprietary insight — knowledge nobody else has access to.\nDistribution control — access to audiences others can\'t reach.',
+    closing: '"Stop building a career. Build a position that defends itself while you sleep."',
+    caption: 'Every hour you spend grinding without building a moat is an hour that doesn\'t compound. Ask yourself: what am I building right now that makes competing with me structurally harder next year?',
+    tags: '#CompetitiveAdvantage #WealthArchitecture #EliteThinking #PowerMoves',
+    brand: 'APEX', handle: '@apexmindset'
+  }
+};
+
+// ════════════════════════════════════════════
+//  READ INPUTS
+// ════════════════════════════════════════════
+function getVal(id) {
+  const el = document.getElementById(id);
+  return el ? el.value : '';
+}
+
+function getData() {
+  return {
+    category: getVal('inp-category'),
+    postnum: getVal('inp-postnum'),
+    hook: getVal('inp-hook'),
+    accent: getVal('inp-accent'),
+    sub: getVal('inp-sub'),
+    avg: getVal('inp-avg'),
+    elite: getVal('inp-elite'),
+    steps: getVal('inp-steps').split('\n').filter(s => s.trim()),
+    closing: getVal('inp-closing'),
+    caption: getVal('inp-caption'),
+    tags: getVal('inp-tags').split(' ').filter(t => t.trim()),
+    brand: getVal('inp-brand'),
+    handle: getVal('inp-handle')
+  };
+}
+
+// ════════════════════════════════════════════
+//  RENDER ENGINE
+// ════════════════════════════════════════════
+function renderSlide(slideIndex, data) {
+  const slide = SLIDES[slideIndex];
+  const accent = currentAccent;
+
+  if (slide.id === 'hook') return renderHook(data, accent);
+  if (slide.id === 'compare') return renderCompare(data, accent);
+  if (slide.id === 'framework') return renderFramework(data, accent);
+  if (slide.id === 'closing') return renderClosing(data, accent);
+  if (slide.id === 'caption') return renderCaption(data, accent);
+  return '';
+}
+
+function highlightAccent(text, accentPhrase) {
+  if (!accentPhrase.trim()) return escHtml(text);
+  const escaped = escHtml(accentPhrase);
+  const escapedText = escHtml(text);
+  return escapedText.replace(escaped, `<span class="accent">${escaped}</span>`);
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderHook(d, accent) {
+  const hookSize = document.getElementById('rng-hooksize')?.value || 32;
+  return `<div class="slide-hook">
+    <div class="top-bar">
+      <span class="category-badge">${escHtml(d.category)}</span>
+      <span class="post-num">${escHtml(d.postnum)}</span>
+    </div>
+    <div class="main-content">
+      <div class="hook-line" style="font-size:${hookSize}px">${highlightAccent(d.hook, d.accent)}</div>
+      <div class="rule"></div>
+      <div class="sub-text">${escHtml(d.sub)}</div>
+    </div>
+    <div class="bottom-bar">
+      <span class="brand-name">${escHtml(d.brand)}</span>
+      <span class="slide-indicator">1 / 5</span>
+    </div>
+  </div>`;
+}
+
+function renderCompare(d, accent) {
+  return `<div class="slide-compare">
+    <div class="compare-header">
+      <div class="compare-label">Average vs Elite Thinking</div>
+      <div class="compare-title">${escHtml(d.category)}</div>
+    </div>
+    <div class="compare-cols">
+      <div class="col-avg">
+        <div class="col-label">Average</div>
+        <div class="col-text">${escHtml(d.avg)}</div>
+      </div>
+      <div class="col-elite">
+        <div class="col-label">Elite</div>
+        <div class="col-text">${escHtml(d.elite)}</div>
+      </div>
+    </div>
+    <div class="bottom-accent">${escHtml(d.hook)}</div>
+  </div>`;
+}
+
+function renderFramework(d, accent) {
+  const stepsHtml = d.steps.map((s, i) =>
+    `<div class="fw-step">
+      <span class="step-num">0${i+1}</span>
+      <span class="step-text">${escHtml(s)}</span>
+    </div>`
+  ).join('');
+
+  return `<div class="slide-framework">
+    <div class="fw-title">↳ Framework</div>
+    <div class="fw-heading">${escHtml(d.category)}</div>
+    <div class="fw-steps">${stepsHtml}</div>
+    <div class="fw-closing">${escHtml(d.closing)}</div>
+  </div>`;
+}
+
+function renderClosing(d, accent) {
+  return `<div class="slide-closing">
+    <div class="closing-rule"></div>
+    <div class="closing-main">${escHtml(d.closing)}</div>
+    <div class="closing-rule2"></div>
+    <div class="closing-brand">${escHtml(d.brand)}</div>
+    <div class="closing-handle">${escHtml(d.handle)}</div>
+  </div>`;
+}
+
+function renderCaption(d, accent) {
+  const tagsHtml = d.tags.map(t => `<span class="cap-tag">${escHtml(t)}</span>`).join('');
+  return `<div class="slide-caption">
+    <div class="cap-eyebrow">↳ Caption &amp; Hashtags</div>
+    <div class="cap-text">${escHtml(d.caption)}</div>
+    <div class="cap-tags">${tagsHtml}</div>
+  </div>`;
+}
+
+// ════════════════════════════════════════════
+//  UPDATE POST
+// ════════════════════════════════════════════
+function updatePost() {
+  const data = getData();
+  const post = document.getElementById('ig-post');
+  post.innerHTML = renderSlide(currentSlide, data);
+  updateSlideStrip();
+  updateSlideCounter();
+  updateDots();
+}
+
+function updateStyle() {
+  updatePost();
+}
+
+// ════════════════════════════════════════════
+//  SLIDE NAV
+// ════════════════════════════════════════════
+function goToSlide(idx) {
+  currentSlide = Math.max(0, Math.min(SLIDES.length - 1, idx));
+  updatePost();
+}
+
+function prevSlide() { goToSlide(currentSlide - 1); }
+function nextSlide() { goToSlide(currentSlide + 1); }
+
+function updateSlideCounter() {
+  document.getElementById('slide-counter').textContent =
+    `${SLIDES[currentSlide].label} · ${currentSlide + 1} / ${SLIDES.length}`;
+}
+
+function updateDots() {
+  const wrap = document.getElementById('slide-dots');
+  wrap.innerHTML = SLIDES.map((s, i) =>
+    `<div class="slide-dot ${i === currentSlide ? 'active' : ''}" onclick="goToSlide(${i})" title="${s.label}"></div>`
+  ).join('');
+}
+
+// ════════════════════════════════════════════
+//  SLIDE STRIP
+// ════════════════════════════════════════════
+const STRIP_COLORS = {
+  'dark-gold': '#0a0a0a',
+  'light-warm': '#faf5ec',
+  'obsidian': '#0d0d14',
+  'ivory': '#f5f0e4',
+  'slate': '#1a1f2e'
+};
+
+function updateSlideStrip() {
+  const strip = document.getElementById('post-strip');
+  const bg = STRIP_COLORS[currentTemplate] || '#0a0a0a';
+  strip.innerHTML = SLIDES.map((s, i) =>
+    `<div class="strip-thumb ${i === currentSlide ? 'active' : ''}" onclick="goToSlide(${i})" title="${s.label}">
+      <div class="strip-thumb-bg" style="background:${bg}"></div>
+      <div class="strip-thumb-label">${s.label}</div>
+    </div>`
+  ).join('');
+}
+
+// ════════════════════════════════════════════
+//  TEMPLATE + ACCENT
+// ════════════════════════════════════════════
+function setTemplate(tpl, btn) {
+  currentTemplate = tpl;
+  document.getElementById('ig-post').setAttribute('data-template', tpl);
+  document.querySelectorAll('.tpl-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  updateSlideStrip();
+}
+
+function setAccent(swatch) {
+  currentAccent = swatch.dataset.color;
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+  swatch.classList.add('active');
+  // Override CSS --gold for current post
+  document.getElementById('ig-post').style.setProperty('--gold', currentAccent);
+  updatePost();
+}
+
+// ════════════════════════════════════════════
+//  APP THEME (light/dark UI)
+// ════════════════════════════════════════════
+let appTheme = 'dark';
+function toggleAppTheme() {
+  appTheme = appTheme === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', appTheme);
+  document.getElementById('theme-icon').textContent = appTheme === 'dark' ? '☀' : '☾';
+  document.getElementById('theme-label').textContent = appTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
+}
+
+// ════════════════════════════════════════════
+//  DOWNLOAD
+// ════════════════════════════════════════════
+function showLoading() { document.getElementById('loading').classList.add('active'); }
+function hideLoading() { document.getElementById('loading').classList.remove('active'); }
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+async function renderToCanvas(slideIdx) {
+  const data = getData();
+  const post = document.getElementById('ig-post');
+  const originalHTML = post.innerHTML;
+  const originalSlide = currentSlide;
+
+  post.innerHTML = renderSlide(slideIdx, data);
+  post.style.setProperty('--gold', currentAccent);
+
+  await new Promise(r => setTimeout(r, 80));
+
+  const canvas = await html2canvas(post, {
+    scale: 2.25,
+    useCORS: true,
+    allowTaint: true,
+    backgroundColor: null,
+    width: 480,
+    height: 480,
+    logging: false
+  });
+
+  post.innerHTML = renderSlide(originalSlide, data);
+  return canvas;
+}
+
+async function downloadCurrentSlide() {
+  showLoading();
+  try {
+    const canvas = await renderToCanvas(currentSlide);
+    const link = document.createElement('a');
+    const data = getData();
+    link.download = `${data.brand.toLowerCase()}-slide-${currentSlide + 1}-${SLIDES[currentSlide].id}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('↓ Slide downloaded — ready for Instagram!');
+  } catch(e) {
+    showToast('Error: ' + e.message);
+  }
+  hideLoading();
+}
+
+async function downloadAllSlides() {
+  showLoading();
+  try {
+    const data = getData();
+    for (let i = 0; i < SLIDES.length; i++) {
+      const canvas = await renderToCanvas(i);
+      const link = document.createElement('a');
+      link.download = `${data.brand.toLowerCase()}-slide-${i+1}-${SLIDES[i].id}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      await new Promise(r => setTimeout(r, 300));
+    }
+    showToast(`↓ All ${SLIDES.length} slides downloaded!`);
+  } catch(e) {
+    showToast('Error: ' + e.message);
+  }
+  hideLoading();
+}
+
+// ════════════════════════════════════════════
+//  LOAD PRESET
+// ════════════════════════════════════════════
+function loadPreset(key) {
+  const p = PRESETS[key];
+  if (!p) return;
+  document.getElementById('inp-category').value = p.category;
+  document.getElementById('inp-postnum').value = p.postnum;
+  document.getElementById('inp-hook').value = p.hook;
+  document.getElementById('inp-accent').value = p.accent;
+  document.getElementById('inp-sub').value = p.sub;
+  document.getElementById('inp-avg').value = p.avg;
+  document.getElementById('inp-elite').value = p.elite;
+  document.getElementById('inp-steps').value = p.steps;
+  document.getElementById('inp-closing').value = p.closing;
+  document.getElementById('inp-caption').value = p.caption;
+  document.getElementById('inp-tags').value = p.tags;
+  document.getElementById('inp-brand').value = p.brand;
+  document.getElementById('inp-handle').value = p.handle;
+  updatePost();
+  showToast(`Loaded: ${p.category}`);
+}
+
+// ════════════════════════════════════════════
+//  RANDOMIZE
+// ════════════════════════════════════════════
+function randomizePost() {
+  const keys = Object.keys(PRESETS);
+  const key = keys[Math.floor(Math.random() * keys.length)];
+  const templates = ['dark-gold', 'light-warm', 'obsidian', 'ivory', 'slate'];
+  const tpl = templates[Math.floor(Math.random() * templates.length)];
+  const tplBtn = [...document.querySelectorAll('.tpl-btn')].find(b => b.textContent.toLowerCase().replace(' ','') === tpl.replace('-',''));
+  setTemplate(tpl, tplBtn);
+  loadPreset(key);
+}
+
+// ════════════════════════════════════════════
+//  KEYBOARD NAV
+// ════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'ArrowLeft') prevSlide();
+  if (e.key === 'ArrowRight') nextSlide();
+});
+
+// ════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════
+updatePost();
+</script>
+</body>
+</html>
