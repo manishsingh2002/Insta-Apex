@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>APEX — Post Studio v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Space+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- OVERLAYS -->
+<div class="loading-overlay" id="loading">
+  <div class="loading-ring"></div>
+  <div class="loading-prog" id="loading-text">Preparing export...</div>
+</div>
+<div class="toast" id="toast"></div>
+<div class="sidebar-backdrop" id="backdrop" onclick="closeSidebar()"></div>
+<button class="mobile-toggle" id="mobile-toggle-btn" onclick="toggleSidebar()">✦ Edit</button>
+
+<!-- CROP MODAL -->
+<div class="crop-modal-overlay" id="crop-modal-overlay" onclick="handleCropOverlayClick(event)">
+  <div class="crop-modal">
+    <div class="crop-modal-header">
+      <span class="crop-modal-title">✂ Crop &amp; Adjust Image</span>
+      <button class="crop-modal-close" onclick="closeCropModal()">✕</button>
+    </div>
+    <div class="crop-modal-body">
+      <!-- Visual drag stage -->
+      <div class="crop-stage" id="crop-stage"
+        onmousedown="cropDragStart(event)"
+        ontouchstart="cropDragStart(event)">
+        <img id="crop-stage-img" class="crop-stage-img" src="" draggable="false">
+        <div class="crop-stage-grid"></div>
+        <div class="crop-drag-hint" id="crop-drag-hint">↕↔ Drag to pan</div>
+      </div>
+      <!-- Sliders -->
+      <div class="crop-controls-panel">
+        <div class="crop-slider-row">
+          <span class="crop-slider-label">Zoom</span>
+          <input type="range" id="cm-scale" min="0.5" max="4" step="0.01" value="1"
+            oninput="cropModalUpdate('scale', this.value)">
+          <span class="crop-slider-val" id="cm-val-scale">1.00×</span>
+        </div>
+        <div class="crop-slider-row">
+          <span class="crop-slider-label">Rotate</span>
+          <input type="range" id="cm-rotate" min="-180" max="180" step="0.5" value="0"
+            oninput="cropModalUpdate('rotate', this.value)">
+          <span class="crop-slider-val" id="cm-val-rotate">0°</span>
+        </div>
+        <div class="crop-slider-row">
+          <span class="crop-slider-label">Bright</span>
+          <input type="range" id="cm-brightness" min="50" max="180" step="1" value="100"
+            oninput="cropModalUpdate('brightness', this.value)">
+          <span class="crop-slider-val" id="cm-val-brightness">100%</span>
+        </div>
+        <div class="crop-slider-row">
+          <span class="crop-slider-label">Contrast</span>
+          <input type="range" id="cm-contrast" min="50" max="180" step="1" value="100"
+            oninput="cropModalUpdate('contrast', this.value)">
+          <span class="crop-slider-val" id="cm-val-contrast">100%</span>
+        </div>
+        <div class="crop-slider-row">
+          <span class="crop-slider-label">Saturate</span>
+          <input type="range" id="cm-saturation" min="0" max="220" step="1" value="100"
+            oninput="cropModalUpdate('saturation', this.value)">
+          <span class="crop-slider-val" id="cm-val-saturation">100%</span>
+        </div>
+      </div>
+      <!-- Quick flip/mirror -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="crop-aspect-btn" onclick="cropFlip('H')">⇔ Flip H</button>
+        <button class="crop-aspect-btn" onclick="cropFlip('V')">⇕ Flip V</button>
+        <button class="crop-aspect-btn" onclick="cropRotate90(-90)">↺ −90°</button>
+        <button class="crop-aspect-btn" onclick="cropRotate90(90)">↻ +90°</button>
+        <button class="crop-aspect-btn" id="cm-reset-btn" onclick="cropModalReset()">↺ Reset All</button>
+      </div>
+    </div>
+    <div class="crop-modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeCropModal()">Cancel</button>
+      <button class="btn btn-gold btn-sm" onclick="applyCropModal()">✓ Apply</button>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="logo">
+      <span class="logo-mark">▲</span>
+      <span class="logo-name">APEX</span>
+      <span class="logo-tag">Post Studio</span>
+    </div>
+
+    <!-- FORMAT SWITCHER — center of header -->
+    <div class="header-center">
+      <div class="format-switcher" id="format-switcher">
+        <button class="fmt-btn active" data-fmt="post" onclick="setFormat('post', this)" title="Square Post 1:1">
+          <svg width="13" height="13" viewBox="0 0 13 13"><rect x="1" y="1" width="11" height="11" rx="1.5" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+          <span>Post</span>
+        </button>
+        <button class="fmt-btn" data-fmt="portrait" onclick="setFormat('portrait', this)" title="Portrait 4:5">
+          <svg width="11" height="14" viewBox="0 0 11 14"><rect x="1" y="1" width="9" height="12" rx="1.5" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+          <span>4:5</span>
+        </button>
+        <button class="fmt-btn" data-fmt="story" onclick="setFormat('story', this)" title="Story / Reel 9:16">
+          <svg width="9" height="16" viewBox="0 0 9 16"><rect x="1" y="1" width="7" height="14" rx="1.5" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+          <span>Story</span>
+        </button>
+      </div>
+      <div class="slide-pill">
+        <span id="slide-counter">1 / 1</span>
+        <button class="pill-btn" id="prev-btn" onclick="prevSlide()" title="Previous (←)">‹</button>
+        <button class="pill-btn" id="next-btn" onclick="nextSlide()" title="Next (→)">›</button>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn btn-ghost btn-icon" id="theme-btn" onclick="toggleAppTheme()" title="Toggle theme">☀</button>
+      <button class="btn btn-ghost btn-icon" onclick="undoAction()" id="undo-btn" title="Undo Ctrl+Z">↩</button>
+      <button class="btn btn-ghost btn-icon" onclick="redoAction()" id="redo-btn" title="Redo Ctrl+Y">↪</button>
+      <button class="btn btn-outline btn-sm" onclick="downloadAllSlides()">⬇ ZIP</button>
+      <button class="btn btn-gold btn-sm" onclick="downloadCurrentSlide()">⬇ Export</button>
+    </div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-scroll">
+
+      <!-- Theme / Background -->
+      <div class="section">
+        <div class="section-label">Theme</div>
+        <div class="chip-grid" id="theme-chips">
+          <div class="chip active" onclick="setTemplate('dark-gold', this)">
+            <div class="chip-swatch" style="background:linear-gradient(135deg,#0a0a0a 50%,#c9a84c 50%)"></div>Dark Gold
+          </div>
+          <div class="chip" onclick="setTemplate('light-warm', this)">
+            <div class="chip-swatch" style="background:linear-gradient(135deg,#faf5ec 50%,#a07830 50%)"></div>Warm Paper
+          </div>
+          <div class="chip" onclick="setTemplate('obsidian', this)">
+            <div class="chip-swatch" style="background:linear-gradient(135deg,#0d0d14 50%,#a078dc 50%)"></div>Obsidian
+          </div>
+          <div class="chip" onclick="setTemplate('ivory', this)">
+            <div class="chip-swatch" style="background:linear-gradient(135deg,#f5f0e4 50%,#b03030 50%)"></div>Ivory Red
+          </div>
+          <div class="chip" onclick="setTemplate('slate', this)">
+            <div class="chip-swatch" style="background:linear-gradient(135deg,#1a1f2e 50%,#50a0dc 50%)"></div>Slate Blue
+          </div>
+          <div class="chip" onclick="setTemplate('matte-rose', this)">
+            <div class="chip-swatch" style="background:linear-gradient(135deg,#1a1015 50%,#e080a0 50%)"></div>Matte Rose
+          </div>
+          <div class="chip" onclick="setTemplate('forest', this)">
+            <div class="chip-swatch" style="background:linear-gradient(135deg,#0d140f 50%,#60c878 50%)"></div>Forest
+          </div>
+          <div class="chip" onclick="setTemplate('midnight', this)">
+            <div class="chip-swatch" style="background:linear-gradient(135deg,#080810 50%,#7090e8 50%)"></div>Midnight
+          </div>
+          <div class="chip" onclick="setTemplate('charcoal', this)">
+            <div class="chip-swatch" style="background:linear-gradient(135deg,#1c1c1c 50%,#e8e8e8 50%)"></div>Charcoal
+          </div>
+          <div class="chip" onclick="setTemplate('deep-wine', this)">
+            <div class="chip-swatch" style="background:linear-gradient(135deg,#110008 50%,#c0305a 50%)"></div>Deep Wine
+          </div>
+          <div class="chip" onclick="setTemplate('sand', this)">
+            <div class="chip-swatch" style="background:linear-gradient(135deg,#e8ddc8 50%,#8b6340 50%)"></div>Sand
+          </div>
+          <div class="chip" onclick="setTemplate('noir', this)">
+            <div class="chip-swatch" style="background:linear-gradient(135deg,#050505 50%,#ffffff 50%)"></div>Pure Noir
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide Manager -->
+      <div class="section">
+        <div class="section-label">Add / Manage</div>
+        <div class="add-row">
+          <select id="new-slide-type">
+            <optgroup label="Text Cards">
+              <option value="hook">Text Hook</option>
+              <option value="quote">Quote Card</option>
+              <option value="compare">Text Compare</option>
+              <option value="framework">Framework Steps</option>
+              <option value="list">Numbered List</option>
+              <option value="closing">Closing Card</option>
+              <option value="caption">Caption Block</option>
+              <option value="stat">Big Stat Card</option>
+              <option value="timeline">Timeline Card</option>
+              <option value="manifesto">Manifesto Card</option>
+            </optgroup>
+            <optgroup label="Media Cards">
+              <option value="media">Full Image BG</option>
+              <option value="product">Product Focus</option>
+              <option value="split">Split Compare</option>
+              <option value="review">Customer Review</option>
+              <option value="expert">Expert Profile</option>
+              <option value="promo">Promo / Sale</option>
+              <option value="carousel">Carousel Feature</option>
+              <option value="announcement">Announcement</option>
+            </optgroup>
+          </select>
+          <button class="btn btn-gold" onclick="addSlide()">+ Add</button>
+        </div>
+        <div class="slide-actions">
+          <button class="btn btn-ghost btn-sm" onclick="duplicateSlide()" style="justify-content:center;">⎘ Duplicate</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteSlide()" style="justify-content:center;">🗑 Delete</button>
+        </div>
+      </div>
+
+      <!-- Dynamic Editor -->
+      <div class="section" id="dynamic-editor"></div>
+
+      <!-- Global Style -->
+      <div class="section">
+        <div class="section-label">Style</div>
+        <div class="field">
+          <label>Heading Size</label>
+          <div class="range-field">
+            <input type="range" id="rng-hooksize" min="16" max="72" value="38" oninput="updateStyle(this.value)">
+            <span class="range-val" id="rng-val">38</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Accent Color</label>
+          <div class="swatch-row" id="swatch-row">
+            <div class="swatch active" style="background:#c9a84c;" data-color="#c9a84c" onclick="setAccent(this)"></div>
+            <div class="swatch" style="background:#9a7030;" data-color="#9a7030" onclick="setAccent(this)"></div>
+            <div class="swatch" style="background:#b83535;" data-color="#b83535" onclick="setAccent(this)"></div>
+            <div class="swatch" style="background:#3090c0;" data-color="#3090c0" onclick="setAccent(this)"></div>
+            <div class="swatch" style="background:#9060d0;" data-color="#9060d0" onclick="setAccent(this)"></div>
+            <div class="swatch" style="background:#38a060;" data-color="#38a060" onclick="setAccent(this)"></div>
+            <div class="swatch" style="background:#e08040;" data-color="#e08040" onclick="setAccent(this)"></div>
+            <div class="swatch" style="background:#e060a0;" data-color="#e060a0" onclick="setAccent(this)"></div>
+            <div class="swatch" style="background:#c84060;" data-color="#c84060" onclick="setAccent(this)"></div>
+            <div class="swatch" style="background:#f0f0f0;" data-color="#f0f0f0" onclick="setAccent(this)"></div>
+          </div>
+          <div class="custom-color-wrap">
+            <label>Custom</label>
+            <input type="color" id="custom-color-picker" value="#c9a84c" oninput="setCustomAccent(this.value)" title="Custom accent color">
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Sidebar Footer -->
+    <div class="sidebar-footer">
+      <div class="export-row">
+        <button class="btn btn-gold" onclick="downloadCurrentSlide()" style="justify-content:center;">⬇ This Card</button>
+        <button class="btn btn-outline" onclick="downloadAllSlides()" style="justify-content:center;">⬇ ZIP All</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN CANVAS AREA -->
+  <div class="main">
+    <!-- Mobile export bar (visible only on mobile, above slide strip) -->
+    <div class="mobile-export-bar" id="mobile-export-bar">
+      <button class="btn btn-outline btn-sm" onclick="downloadAllSlides()">⬇ ZIP All</button>
+      <button class="btn btn-gold btn-sm" onclick="downloadCurrentSlide()">⬇ Export Card</button>
+    </div>
+    <div class="preview-wrap" id="preview-wrap">
+      <div class="canvas-frame" id="canvas-frame">
+        <div class="ig-card" id="ig-card" data-template="dark-gold" data-format="post"></div>
+        <div class="canvas-size-label" id="canvas-size-label">1080 × 1080 · Square Post</div>
+      </div>
+    </div>
+    <div class="slide-strip" id="slide-strip"></div>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
